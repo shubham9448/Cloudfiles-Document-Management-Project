@@ -1,58 +1,89 @@
-# Salesforce DX Project
+# Cloudfiles Document Management Project (Copperline Finance)
 
-Salesforce DX is a development approach that brings source-driven development, team collaboration, and continuous integration to the Salesforce Platform. Instead of working directly in an org through a web browser, you work with metadata as source files in a local DX project, track changes in version control, and deploy through automated processes.
+A Salesforce DX project that holds the metadata for **Copperline Finance**, an equipment-finance use case built on the **CloudFiles** managed package (namespace `cldfs`). It automates the document lifecycle of a finance deal (an Opportunity): creating Drive folders, filing and reading uploaded documents, generating finance paperwork, and sharing documents with suppliers through a dataroom.
 
-This project template gets you started with the tools and structure you need to build Salesforce applications using source control, scratch orgs, and the Salesforce CLI.
+The metadata was retrieved from the org with the manifest in [`manifest/package.xml`](manifest/package.xml).
+
+## What the use case does
+
+| Step | Flow | Trigger | What it does |
+|---|---|---|---|
+| 1 | Copperline: Customer folder | Account created | Creates a customer folder and attaches it to the Account. |
+| 2 | Copperline: Deal Folder | Opportunity created | Creates the deal folder and its sub-folders (Application, Identity, Agreement, Supplier Invoice, Others), then saves the folder Ids on the Opportunity. |
+| 3 | Copperline: Send to Document AI | CloudFiles event created | When a file is dropped in a deal folder, creates a `Related_Document__c` record and sends the file to be read. |
+| 4 | Copperline: File and read | `Related_Document__c` created | Classifies the document (driving licence, identity document, supplier invoice), reads the licence or invoice, records the document type and moves the file to the right folder. |
+| 5 | Copperline: Welcome letter | Opportunity updated | Generates the welcome letter document. |
+| 6 | Copperline: Generate the finance agreement | Quick action on Opportunity | Checks the deal is ready (blocks if the licence has expired), then generates the finance agreement. |
+| 7 | Copperline: Share with supplier | Quick action on Opportunity | Lets the user pick documents (application, agreement, invoice), creates a dataroom and link, adds the documents and emails the supplier. |
+| 8 | Copperline: Add dataroom recipient | Quick action on Opportunity | Adds more recipients to an existing dataroom, updates link access and emails them. |
+
+## Key metadata
+
+- **App:** `Copperline_Finance` (Account, Opportunity, Related Documents tabs, plus a utility bar).
+- **Custom objects:**
+  - `Related_Document__c`: a document linked to an Opportunity (document type, file name, drive Id, resource Id, library).
+  - `Dataroom_Recipient__c`: an email recipient of a deal dataroom, linked to an Opportunity.
+- **Opportunity fields:** deal folder Ids, agreement details, supplier and dataroom details, invoice details, equipment details (make, model, serial number, year), and licence details (`Licence_Number__c`, `Licence_Holder_Name__c`, `Licence_Expiry_Date__c`, and the formula checkbox `Licence_Expired__c`).
+- **Validation rule:** `Cannot_Close_With_Expired_Licence` stops an Opportunity moving to *Closed Won* while the licence has expired.
+- **Quick actions on Opportunity:** Generate Finance Agreement, Share with Supplier, Add Dataroom Recipient.
+- **LWC:** `licenceStatusRefresher` polls every 5 seconds (only while the tab is visible) so the licence status on the record page updates as soon as a document is read. It is placed on `Opportunity_Record_Page`.
+- **Permission set:** `Copperline_Licence_Fields`.
+- **Compact layout:** `Copperline_Deal` on Opportunity.
+
+There is no custom Apex in this project; the automation is built with Flow and the `cldfs` package actions.
 
 ## Prerequisites
 
-Before you start, make sure you have:
+- **Salesforce CLI** (`sf`). See [Install Salesforce CLI](https://developer.salesforce.com/docs/atlas.en-us.sfdx_setup.meta/sfdx_setup/sfdx_setup_install_cli.htm).
+- **VS Code with the Salesforce Extension Pack** (optional).
+- **The CloudFiles managed package (`cldfs`) installed in the target org.** The flows and the CloudFiles event tab depend on it, so deployment fails without it.
+- **Node.js** if you want to run the lint and LWC test scripts in `package.json`.
 
-- **Salesforce CLI** - Download from [developer.salesforce.com/tools/salesforcecli](https://developer.salesforce.com/tools/salesforcecli). See [Install Salesforce CLI](https://developer.salesforce.com/docs/atlas.en-us.sfdx_setup.meta/sfdx_setup/sfdx_setup_install_cli.htm) for details.
-- **VS Code with Salesforce Extension Pack** - See [Installation Instructions](https://developer.salesforce.com/docs/platform/sfvscode-extensions/guide/install.html) for details. Includes the Agentforce Vibes extension.
-- **A development org** - Sign up for a free Developer Edition org [here](https://developer.salesforce.com/signup).
-- **Dev Hub enabled** (optional, required to create scratch orgs) - You can enable Dev Hub in your development org under Setup > Dev Hub.  See [Provide Developers Access to Salesforce DX Tools](https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_setup_dx_tools.htm).
+## Project structure
 
-## Project Structure
+- `force-app/main/default/`: metadata source (flows, objects, LWC, flexipages, applications, quick actions, permission sets and more).
+- `manifest/package.xml`: the manifest used to retrieve metadata from the org.
+- `OPP-2041-excavator-purchase/`: fictional sample documents (application form, licence, utility bill, supplier invoice, signed agreement, delivery photo) for trying the flows. See `CREDITS.txt` in that folder.
+- `config/`: scratch org definition.
+- `scripts/`: sample Apex and SOQL scripts.
+- `sfdx-project.json`: project configuration (API version 67.0).
 
-Your DX project follows this structure:
+> **Note:** the retrieve also pulled in standard org metadata (profiles, sharing rules, standard apps, layouts, flexipages, quick actions). Only the items prefixed `Copperline`, plus the two custom objects, the Opportunity customisations and the `licenceStatusRefresher` component, belong to this use case.
 
-- **`force-app/main/default/`** - Your metadata source files live in this default package directory. You can configure additional package directories in the `sfdx-project.json` file.
-- **`config/`** - Scratch org definitions and project settings
-- **`scripts/`** - Automation scripts for common tasks
-- **`sfdx-project.json`** - Project manifest that defines package directories, namespace, API version, and other project-level settings
+## Getting started
 
-See [Salesforce DX Project Configuration](https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_ws_config.htm).
+```bash
+# 1. Authorise the org
+sf org login web --alias cloudfiles
 
-## Get Started
+# 2. Retrieve the metadata listed in the manifest
+sf project retrieve start --manifest manifest/package.xml --target-org cloudfiles
 
-Ready to start developing? The [Get Started with Salesforce DX](https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_get_started_dx.htm) guide walks you through your first project, from creating a scratch org to creating a simple Apex class or LWC to deploying your code to a sandbox.
+# 3. Deploy to another org (the cldfs package must already be installed there)
+sf project deploy start --source-dir force-app --target-org <target-alias>
+```
 
-## Common Salesforce CLI Commands
+To deploy only this use case, deploy the specific components instead of the whole folder, for example:
 
-Here are common CLI commands that you'll use the most:
+```bash
+sf project deploy start --target-org <target-alias> \
+  --metadata "Flow:Copperline_*" \
+  --metadata CustomObject:Related_Document__c \
+  --metadata CustomObject:Dataroom_Recipient__c \
+  --metadata CustomApplication:Copperline_Finance \
+  --metadata LightningComponentBundle:licenceStatusRefresher
+```
 
-- `sf org login web`: Authorize an org
-- `sf org open`: Open your org in a browser
-- `sf org create scratch`: Create a scratch org
-- `sf project deploy start`: Deploy metadata to your org
-- `sf project retrieve start`: Retrieve metadata from your org
-- `sf template generate <artifact>`: Scaffold new components, such as Apex classes and triggers, LWC components, Lightning apps, and more
-- `sf apex <command>`: Run Apex tests, run anonymous Apex blocks, and view logs
-- `sf data <command>`: Work with test data
-- `sf alias <command>`: Manage org aliases
-- `sf config <command>`: Configure CLI settings
+## Common commands
 
-## Use Agentforce Vibes to Build Lightning Apps
+- `sf org open --target-org <alias>`: open the org in a browser.
+- `sf project deploy start`: deploy metadata.
+- `sf project retrieve start`: retrieve metadata.
+- `npm run lint`: lint the LWC JavaScript.
+- `npm run test:unit`: run LWC unit tests (if present).
 
-Transform your ideas into custom Lightning apps that extend CRM workflows directly in Lightning Experience. Through natural conversations with Agentforce Vibes, implement custom objects and fields, complex business logic, and dynamic UI components. See [Build a Lightning App Using Agentforce Vibes](https://developer.salesforce.com/docs/platform/einstein-for-devs/guide/lexapp-overview.html).
+## Resources
 
-## Additional Resources
-
-- [Agentforce Vibes Developer Guide](https://developer.salesforce.com/docs/platform/einstein-for-devs/guide/einstein-overview.html)
-- [Salesforce CLI Installation Guide](https://developer.salesforce.com/docs/atlas.en-us.sfdx_setup.meta/sfdx_setup/sfdx_setup_intro.htm)
 - [Salesforce DX Developer Guide](https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/)
 - [Salesforce CLI Command Reference](https://developer.salesforce.com/docs/atlas.en-us.sfdx_cli_reference.meta/sfdx_cli_reference/)
-- [Salesforce CLI Plugin Development Guide](https://developer.salesforce.com/docs/platform/salesforce-cli-plugin/guide/conceptual-overview.html)
-- [Salesforce VS Code Extensions Documentation](https://developer.salesforce.com/tools/vscode/)
-
+- [Salesforce VS Code Extensions](https://developer.salesforce.com/tools/vscode/)
