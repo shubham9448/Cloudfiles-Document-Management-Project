@@ -1,0 +1,7 @@
+<template>
+    <div class="slds-var-p-horizontal_medium slds-var-p-vertical_xx-small slds-text-body_small slds-text-color_weak">
+        <lightning-icon icon-name="utility:refresh" size="xx-small" class="slds-var-m-right_x-small"></lightning-icon>
+        Live view: updating automatically every 5 seconds
+        <template lwc:if={lastChecked}> · last checked {lastChecked}</template>
+    </div>
+</template>

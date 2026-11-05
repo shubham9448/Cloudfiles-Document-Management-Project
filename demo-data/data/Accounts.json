@@ -1,0 +1,22 @@
+{
+  "records": [
+    {
+      "attributes": { "type": "Account", "referenceId": "AccountRef1" },
+      "Name": "Redwood Ridge Landscaping LLC",
+      "BillingStreet": "2210 Pinecrest Drive",
+      "BillingCity": "Louisville",
+      "BillingState": "CO",
+      "BillingPostalCode": "80027",
+      "Authorized_Signatory__c": "Elena Marquez"
+    },
+    {
+      "attributes": { "type": "Account", "referenceId": "AccountRef2" },
+      "Name": "Mesa Verde Print Shop Inc.",
+      "BillingStreet": "77 Mill Street",
+      "BillingCity": "Golden",
+      "BillingState": "CO",
+      "BillingPostalCode": "80401",
+      "Authorized_Signatory__c": "Daniel Okafor"
+    }
+  ]
+}
